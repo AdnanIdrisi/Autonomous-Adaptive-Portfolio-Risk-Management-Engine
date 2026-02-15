@@ -133,3 +133,12 @@ if __name__ == "__main__":
     print("Annual Volatility:", annual_vol)
     print("Sharpe Ratio:", sharpe)
 
+    from backend.utils.metrics import PortfolioMetrics
+
+    metrics = PortfolioMetrics(port_returns)
+    report = metrics.summary()
+
+    for k, v in report.items():
+        print(f"{k}: {v}")
+
+
