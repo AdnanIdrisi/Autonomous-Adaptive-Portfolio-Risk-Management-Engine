@@ -1,15 +1,17 @@
 import pandas as pd
 import numpy as np
 
-from data_loader import fetch_price_data
-from feature_engineering import (
+from backend.core.data_loader import fetch_price_data
+from backend.core.feature_engineering import (
     build_feature_set,
     compute_returns,
     compute_rolling_volatility
 )
-from regime_detection import RegimeDetector
-from allocation_engine import AllocationEngine
-from risk_manager import RiskManager
+from backend.core.regime_detection import RegimeDetector
+from backend.core.allocation_engine import AllocationEngine
+from backend.utils.metrics import PortfolioMetrics
+from backend.core.risk_manager import RiskManager
+from backend.core.stress_testing import StressTester
 
 
 class Backtester:
@@ -123,22 +125,52 @@ if __name__ == "__main__":
     print("Min daily return:", port_returns.min())
     print("\nTotal Return:", (1 + port_returns).prod() - 1)
 
-    # Performance Metrics
-    cumulative = (1 + port_returns).cumprod()
-    annual_return = cumulative.iloc[-1] ** (252 / len(port_returns)) - 1
-    annual_vol = port_returns.std() * np.sqrt(252)
-    sharpe = annual_return / annual_vol
-
-    print("\nAnnual Return:", annual_return)
-    print("Annual Volatility:", annual_vol)
-    print("Sharpe Ratio:", sharpe)
-
-    from backend.utils.metrics import PortfolioMetrics
 
     metrics = PortfolioMetrics(port_returns)
     report = metrics.summary()
 
     for k, v in report.items():
         print(f"{k}: {v}")
+
+
+    # ===============================
+    # 🚨 STRESS TESTING MODULE
+    # ===============================
+    print("\n===== Running Stress Tests =====")
+
+    # Reload raw returns for stress simulation
+    prices = fetch_price_data()
+    raw_returns = compute_returns(prices).loc[port_returns.index]
+
+    stress_tester = StressTester()
+
+    # 1️⃣ Market Crash Scenario
+    crash_returns = stress_tester.simulate_market_crash(raw_returns)
+    crash_portfolio = (crash_returns * (1 / crash_returns.shape[1])).sum(axis=1)
+
+    crash_result = stress_tester.evaluate_stress(
+        portfolio_returns=port_returns,
+        stressed_returns=crash_portfolio,
+        scenario_name="Equity Market Crash"
+    )
+
+    # 2️⃣ Volatility Spike Scenario
+    vol_spike_returns = stress_tester.simulate_volatility_spike(raw_returns)
+    vol_spike_portfolio = (vol_spike_returns * (1 / vol_spike_returns.shape[1])).sum(axis=1)
+
+    vol_result = stress_tester.evaluate_stress(
+        portfolio_returns=port_returns,
+        stressed_returns=vol_spike_portfolio,
+        scenario_name="Volatility Spike"
+    )
+
+    # Display results
+    print("\nStress Test Results:")
+    for res in [crash_result, vol_result]:
+        print("\nScenario:", res["Scenario"])
+        print("Normal Total Return:", round(res["Normal Total Return"], 4))
+        print("Stressed Total Return:", round(res["Stressed Total Return"], 4))
+        print("Max Drawdown (Stress):", round(res["Max Drawdown (Stress)"], 4))
+
 
 

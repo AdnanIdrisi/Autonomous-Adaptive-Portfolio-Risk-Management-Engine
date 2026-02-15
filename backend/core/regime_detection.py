@@ -38,10 +38,10 @@ class RegimeDetector:
         return self.predict(feature_df)
 
 if __name__ == "__main__":
-    # from backend.core.data_loader import fetch_price_data
-    from data_loader import fetch_price_data
-    # from backend.core.feature_engineering import build_feature_set
-    from feature_engineering import build_feature_set
+    from backend.core.data_loader import fetch_price_data
+    # from data_loader import fetch_price_data
+    from backend.core.feature_engineering import build_feature_set
+    # from feature_engineering import build_feature_set
 
     prices = fetch_price_data()
     features = build_feature_set(prices)

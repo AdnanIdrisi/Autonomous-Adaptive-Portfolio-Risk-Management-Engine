@@ -69,20 +69,20 @@ class AllocationEngine:
 
 
 if __name__ == "__main__":
-    # from backend.core.data_loader import fetch_price_data
-    from data_loader import fetch_price_data
-    # from backend.core.feature_engineering import (
-    #     build_feature_set,
-    #     compute_returns,
-    #     compute_rolling_volatility
-    # )
-    from feature_engineering import (
+    from backend.core.data_loader import fetch_price_data
+    # from data_loader import fetch_price_data
+    from backend.core.feature_engineering import (
         build_feature_set,
         compute_returns,
         compute_rolling_volatility
     )
-    # from backend.core.regime_detection import RegimeDetector
-    from regime_detection import RegimeDetector
+    # from feature_engineering import (
+    #     build_feature_set,
+    #     compute_returns,
+    #     compute_rolling_volatility
+    # )
+    from backend.core.regime_detection import RegimeDetector
+    # from regime_detection import RegimeDetector
 
     prices = fetch_price_data()
 

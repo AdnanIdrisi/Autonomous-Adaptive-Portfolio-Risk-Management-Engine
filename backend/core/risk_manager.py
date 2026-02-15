@@ -76,16 +76,14 @@ class RiskManager:
 
 
 if __name__ == "__main__":
-    # from backend.core.data_loader import fetch_price_data
-    from data_loader import fetch_price_data
-    # from backend.core.feature_engineering import compute_returns, compute_rolling_volatility
-    from feature_engineering import compute_returns, compute_rolling_volatility
-    # from backend.core.regime_detection import RegimeDetector
-    from regime_detection import RegimeDetector
-    # from backend.core.allocation_engine import AllocationEngine
-    from allocation_engine import AllocationEngine
-    # from backend.core.feature_engineering import build_feature_set
-    from feature_engineering import build_feature_set
+    from backend.core.data_loader import fetch_price_data
+    # from data_loader import fetch_price_data
+    from backend.core.feature_engineering import compute_returns, compute_rolling_volatility, build_feature_set
+    # from feature_engineering import compute_returns, compute_rolling_volatility
+    from backend.core.regime_detection import RegimeDetector
+    # from regime_detection import RegimeDetector
+    from backend.core.allocation_engine import AllocationEngine
+    # from allocation_engine import AllocationEngine
 
     prices = fetch_price_data()
     returns = compute_returns(prices)

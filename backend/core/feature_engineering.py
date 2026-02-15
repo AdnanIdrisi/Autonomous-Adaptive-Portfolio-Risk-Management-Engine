@@ -73,8 +73,8 @@ def build_feature_set(price_df: pd.DataFrame, window: int = 120) -> pd.DataFrame
 
 
 if __name__ == "__main__":
-    # from backend.core.data_loader import fetch_price_data
-    from data_loader import fetch_price_data
+    from backend.core.data_loader import fetch_price_data
+    # from data_loader import fetch_price_data
 
     prices = fetch_price_data()
     features = build_feature_set(prices)
