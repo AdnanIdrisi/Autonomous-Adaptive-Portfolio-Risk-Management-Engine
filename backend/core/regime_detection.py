@@ -1,53 +1,67 @@
 import pandas as pd
-from sklearn.cluster import KMeans
-from sklearn.preprocessing import StandardScaler
+import numpy as np
+from hmmlearn.hmm import GaussianHMM
 
 
 class RegimeDetector:
-    def __init__(self, n_regimes: int = 3, random_state: int = 42):
-        self.n_regimes = n_regimes
-        self.model = KMeans(n_clusters=n_regimes, random_state=random_state)
-        self.scaler = StandardScaler()
-        self.fitted = False
+    """
+    Hidden Markov Model based regime detection.
+    Supports:
+    - fit()
+    - predict()
+    - fit_predict()
+    """
 
-    def fit(self, feature_df: pd.DataFrame):
-        """
-        Fit KMeans on feature set to learn market regimes.
-        """
-        scaled_features = self.scaler.fit_transform(feature_df)
-        self.model.fit(scaled_features)
+    def __init__(self, n_states: int = 2):
+        self.n_states = n_states
+        self.model = GaussianHMM(
+            n_components=n_states,
+            covariance_type="full",
+            n_iter=200,
+            random_state=42
+        )
+        self.fitted = False
+        self.bull_state = None
+
+    # --------------------------------------------------
+    # Fit model on training features
+    # --------------------------------------------------
+    def fit(self, features: pd.DataFrame):
+        X = features.values
+        self.model.fit(X)
+
+        hidden_states = self.model.predict(X)
+
+        # Determine which state is bull (higher mean return)
+        state_means = []
+        for i in range(self.n_states):
+            if np.sum(hidden_states == i) > 0:
+                state_means.append(X[hidden_states == i][:, 0].mean())
+            else:
+                state_means.append(-np.inf)
+
+        self.bull_state = int(np.argmax(state_means))
         self.fitted = True
 
-    def predict(self, feature_df: pd.DataFrame) -> pd.Series:
-        """
-        Predict regime labels for each time step.
-        """
+
+    # --------------------------------------------------
+    # Predict regime for new data
+    # --------------------------------------------------
+    def predict(self, features: pd.DataFrame) -> pd.Series:
         if not self.fitted:
-            raise ValueError("Model not fitted. Call fit() first.")
+            raise ValueError("Model must be fitted before prediction.")
 
-        scaled_features = self.scaler.transform(feature_df)
-        regimes = self.model.predict(scaled_features)
+        X = features.values
+        hidden_states = self.model.predict(X)
 
-        return pd.Series(regimes, index=feature_df.index, name="Regime")
+        regimes = pd.Series(hidden_states, index=features.index)
+        regimes = regimes.apply(lambda x: 1 if x == self.bull_state else 0)
 
-    def fit_predict(self, feature_df: pd.DataFrame) -> pd.Series:
-        """
-        Fit and predict regimes in one step.
-        """
-        self.fit(feature_df)
-        return self.predict(feature_df)
+        return regimes
 
-if __name__ == "__main__":
-    from backend.core.data_loader import fetch_price_data
-    # from data_loader import fetch_price_data
-    from backend.core.feature_engineering import build_feature_set
-    # from feature_engineering import build_feature_set
-
-    prices = fetch_price_data()
-    features = build_feature_set(prices)
-
-    detector = RegimeDetector(n_regimes=3)
-    regimes = detector.fit_predict(features)
-
-    print(regimes.value_counts())
-    print(regimes.head())
+    # --------------------------------------------------
+    # Fit and predict in one step (for pipeline use)
+    # --------------------------------------------------
+    def fit_predict(self, features: pd.DataFrame) -> pd.Series:
+        self.fit(features)
+        return self.predict(features)

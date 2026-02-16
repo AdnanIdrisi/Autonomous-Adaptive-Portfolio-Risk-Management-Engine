@@ -10,14 +10,24 @@ st.set_page_config(page_title="Adaptive Portfolio Dashboard", layout="wide")
 st.title("📊 Adaptive Portfolio & Risk Management Dashboard")
 
 # ---------------------------------------------------
+# 🔄 Live Refresh Button
+# ---------------------------------------------------
+if "refresh_counter" not in st.session_state:
+    st.session_state.refresh_counter = 0
+
+if st.button("🔄 Refresh Data"):
+    st.session_state.refresh_counter += 1
+    st.cache_data.clear()
+
+# ---------------------------------------------------
 # Fetch Data from FastAPI
 # ---------------------------------------------------
 @st.cache_data
-def fetch_pipeline_data():
+def fetch_pipeline_data(_counter):
     response = requests.get(API_URL)
     return response.json()
 
-data = fetch_pipeline_data()
+data = fetch_pipeline_data(st.session_state.refresh_counter)
 
 # ---------------------------------------------------
 # Extract Data
@@ -28,6 +38,10 @@ regimes = pd.Series(data["regime_history"])
 volatility = pd.DataFrame(data["volatility_series"])
 weights = data["latest_weights"]
 stress = data["stress_test"]
+
+# Ensure indices align
+portfolio_returns.index = pd.to_datetime(portfolio_returns.index)
+regimes.index = pd.to_datetime(regimes.index)
 
 # ---------------------------------------------------
 # 1️⃣ Performance Metrics
@@ -48,17 +62,27 @@ col6.metric("Max Drawdown", f"{performance['max_drawdown']:.2%}")
 st.divider()
 
 # ---------------------------------------------------
-# 2️⃣ Equity Curve
+# 2️⃣ Equity Curve with Regime Shading
 # ---------------------------------------------------
-st.subheader("📉 Portfolio Equity Curve")
+st.subheader("📉 Portfolio Equity Curve (Regime Shaded)")
 
 cumulative = (1 + portfolio_returns).cumprod()
 
-fig, ax = plt.subplots()
-ax.plot(cumulative)
-ax.set_title("Cumulative Portfolio Growth")
+fig, ax = plt.subplots(figsize=(10, 4))
+ax.plot(cumulative, label="Equity Curve", color="black")
+
+# Regime shading
+for i in range(1, len(regimes)):
+    if regimes.iloc[i] == 1:  # Bull regime
+        ax.axvspan(regimes.index[i-1], regimes.index[i], alpha=0.1)
+    else:  # Bear regime
+        ax.axvspan(regimes.index[i-1], regimes.index[i], alpha=0.1, hatch="//")
+
+ax.set_title("Cumulative Portfolio Growth with Regime Shading")
 ax.set_xlabel("Time")
 ax.set_ylabel("Portfolio Value")
+ax.legend()
+
 st.pyplot(fig)
 
 st.divider()
@@ -68,11 +92,12 @@ st.divider()
 # ---------------------------------------------------
 st.subheader("🧠 Market Regime Timeline")
 
-fig2, ax2 = plt.subplots()
+fig2, ax2 = plt.subplots(figsize=(10, 3))
 ax2.plot(regimes, drawstyle="steps-post")
 ax2.set_title("Detected Market Regimes")
 ax2.set_xlabel("Time")
 ax2.set_ylabel("Regime (0=Bear, 1=Bull)")
+
 st.pyplot(fig2)
 
 st.divider()
@@ -85,6 +110,7 @@ st.subheader("🥧 Latest Portfolio Allocation")
 fig3, ax3 = plt.subplots()
 ax3.pie(weights.values(), labels=weights.keys(), autopct="%1.1f%%")
 ax3.set_title("Current Asset Allocation")
+
 st.pyplot(fig3)
 
 st.divider()

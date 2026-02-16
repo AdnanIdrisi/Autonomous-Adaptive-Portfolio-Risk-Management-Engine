@@ -9,7 +9,7 @@ ASSETS = {
 }
 
 
-def fetch_price_data(start="2015-01-01", end="2024-12-31") -> pd.DataFrame:
+def fetch_price_data(start="2015-01-01", end="2025-12-31") -> pd.DataFrame:
     """
     Fetch closing prices for Indian market assets and return
     a clean aligned dataframe.
