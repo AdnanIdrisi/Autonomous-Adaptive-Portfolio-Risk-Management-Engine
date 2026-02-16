@@ -38,6 +38,7 @@ regimes = pd.Series(data["regime_history"])
 volatility = pd.DataFrame(data["volatility_series"])
 weights = data["latest_weights"]
 stress = data["stress_test"]
+risk_comparison = data.get("risk_comparison", None)  # NEW
 
 # Ensure indices align
 portfolio_returns.index = pd.to_datetime(portfolio_returns.index)
@@ -126,3 +127,32 @@ for scenario, results in stress.items():
     col1.metric("Normal Return", f"{results['Normal Total Return']:.2%}")
     col2.metric("Stressed Return", f"{results['Stressed Total Return']:.2%}")
     col3.metric("Max Drawdown", f"{results['Max Drawdown (Stress)']:.2%}")
+
+st.divider()
+
+# ---------------------------------------------------
+# 6️⃣ Risk Engine Comparison (NEW 🔥)
+# ---------------------------------------------------
+if risk_comparison is not None:
+    st.subheader("🛡️ Risk Engine Impact Analysis")
+
+    comp_df = pd.DataFrame(risk_comparison)
+
+    st.dataframe(comp_df.style.format({
+        "Total Return": "{:.2%}",
+        "Annual Return": "{:.2%}",
+        "Annual Volatility": "{:.2%}",
+        "Sharpe Ratio": "{:.2f}",
+        "Sortino Ratio": "{:.2f}",
+        "Max Drawdown": "{:.2%}",
+    }))
+
+    # Bar chart comparison
+    st.subheader("📊 Risk Engine Performance Comparison")
+
+    fig4, ax4 = plt.subplots(figsize=(8, 4))
+    comp_df.loc[["Sharpe Ratio", "Max Drawdown"]].T.plot(kind="bar", ax=ax4)
+    ax4.set_title("With vs Without Risk Engine")
+    ax4.set_ylabel("Metric Value")
+    ax4.legend(title="Metric")
+    st.pyplot(fig4)

@@ -5,8 +5,8 @@ import numpy as np
 class RiskManager:
     def __init__(
         self,
-        target_vol: float = 0.15,      # 15% annualized vol target
-        max_drawdown: float = -0.20,   # -20% drawdown threshold
+        target_vol: float = 0.10,      # 15% annualized vol target
+        max_drawdown: float = -0.15,   # -20% drawdown threshold
         stop_loss: float = -0.05       # -5% recent loss trigger
     ):
         self.target_vol = target_vol

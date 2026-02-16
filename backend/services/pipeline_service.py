@@ -23,6 +23,7 @@ class PipelineService:
     - Allocation + risk management
     - Backtesting
     - Metrics computation
+    - Risk comparison (With vs Without Risk Engine)
     - Stress testing
     """
 
@@ -36,40 +37,34 @@ class PipelineService:
         import numpy as np
         import pandas as pd
 
-        # Dict
         if isinstance(obj, dict):
             return {k: self._to_python(v) for k, v in obj.items()}
 
-        # List / Tuple
         elif isinstance(obj, (list, tuple)):
             return [self._to_python(v) for v in obj]
 
-        # Pandas Series → dict
         elif isinstance(obj, pd.Series):
             return {str(k): self._to_python(v) for k, v in obj.to_dict().items()}
 
-        # Pandas DataFrame → dict of dict
         elif isinstance(obj, pd.DataFrame):
             return {
                 str(idx): {col: self._to_python(val) for col, val in row.items()}
                 for idx, row in obj.iterrows()
             }
 
-        # Pandas Timestamp → string
         elif isinstance(obj, pd.Timestamp):
             return obj.isoformat()
 
-        # Numpy types
         elif isinstance(obj, (np.integer,)):
             return int(obj)
+
         elif isinstance(obj, (np.floating,)):
             return float(obj)
+
         elif isinstance(obj, (np.ndarray,)):
             return obj.tolist()
 
         return obj
-
-
 
     def run_pipeline(self):
         """
@@ -107,9 +102,9 @@ class PipelineService:
         regimes = detector.fit_predict(features)
 
         # ---------------------------
-        # 4️⃣ Backtesting
+        # 4️⃣ Backtesting (WITH Risk Engine)
         # ---------------------------
-        backtester = Backtester(window=self.window)
+        backtester = Backtester(window=self.window, use_risk=True)
         portfolio_returns = backtester.run_backtest()
 
         # ---------------------------
@@ -127,7 +122,34 @@ class PipelineService:
         }
 
         # ---------------------------
-        # 6️⃣ Latest Allocation Weights
+        # 6️⃣ Risk Engine Comparison
+        # ---------------------------
+        backtester_no_risk = Backtester(window=self.window, use_risk=False)
+        returns_no_risk = backtester_no_risk.run_backtest()
+
+        metrics_no_risk = PortfolioMetrics(returns_no_risk)
+
+        risk_comparison = {
+            "Without Risk Engine": {
+                "Total Return": metrics_no_risk.total_return(),
+                "Annual Return": metrics_no_risk.annual_return(),
+                "Annual Volatility": metrics_no_risk.annual_volatility(),
+                "Sharpe Ratio": metrics_no_risk.sharpe_ratio(),
+                "Sortino Ratio": metrics_no_risk.sortino_ratio(),
+                "Max Drawdown": metrics_no_risk.max_drawdown(),
+            },
+            "With Risk Engine": {
+                "Total Return": performance_summary["total_return"],
+                "Annual Return": performance_summary["annual_return"],
+                "Annual Volatility": performance_summary["annual_volatility"],
+                "Sharpe Ratio": performance_summary["sharpe_ratio"],
+                "Sortino Ratio": performance_summary["sortino_ratio"],
+                "Max Drawdown": performance_summary["max_drawdown"],
+            },
+        }
+
+        # ---------------------------
+        # 7️⃣ Latest Allocation Weights
         # ---------------------------
         alloc_engine = AllocationEngine()
         latest_vol = vol.iloc[[-1]]
@@ -137,11 +159,10 @@ class PipelineService:
         latest_weights = latest_weights.iloc[0].to_dict()
 
         # ---------------------------
-        # 7️⃣ Stress Testing
+        # 8️⃣ Stress Testing
         # ---------------------------
         stress_tester = StressTester()
 
-        # stress_results = stress_tester.run_all_scenarios(portfolio_returns)
         prices = fetch_price_data()
         asset_returns = compute_returns(prices)
 
@@ -154,12 +175,11 @@ class PipelineService:
         vol = vol.loc[common_idx]
 
         detector = RegimeDetector()
-        regimes = detector.fit_predict(features)
+        regimes_full = detector.fit_predict(features)
 
         alloc_engine = AllocationEngine()
-        weights = alloc_engine.compute_allocation(vol, regimes)
+        weights = alloc_engine.compute_allocation(vol, regimes_full)
 
-        # Run stress scenarios
         stress_results = stress_tester.run_all_scenarios(
             asset_returns,
             weights,
@@ -167,7 +187,7 @@ class PipelineService:
         )
 
         # ---------------------------
-        # 8️⃣ Return Full Pipeline Output
+        # 9️⃣ Final Output
         # ---------------------------
         result = {
             "performance": performance_summary,
@@ -176,11 +196,10 @@ class PipelineService:
             "volatility_series": vol,
             "latest_weights": latest_weights,
             "stress_test": stress_results,
+            "risk_comparison": risk_comparison,  # 🔥 Added for dashboard
         }
 
-        result = self._to_python(result)
-
-        return result
+        return self._to_python(result)
 
 
 if __name__ == "__main__":
@@ -190,4 +209,5 @@ if __name__ == "__main__":
     print("\n===== PIPELINE OUTPUT SUMMARY =====")
     print("Performance:", output["performance"])
     print("Latest Weights:", output["latest_weights"])
+    print("Risk Comparison:", output["risk_comparison"])
     print("Stress Test:", output["stress_test"])
